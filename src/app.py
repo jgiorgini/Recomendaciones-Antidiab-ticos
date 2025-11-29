@@ -28,12 +28,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- FUNCIÓN PARA RESETEAR DATOS (Valores actualizados) ---
+# --- FUNCIÓN PARA RESETEAR DATOS ---
 def resetear_datos():
     st.session_state["sintomas"] = "No"
-    st.session_state["imc"] = 25.0        # Default actualizado
-    st.session_state["hba1c_actual"] = 7.0 # Default actualizado
-    st.session_state["hba1c_meta"] = 7.0   # Default actualizado
+    st.session_state["imc"] = 25.0
+    st.session_state["hba1c_actual"] = 7.0
+    st.session_state["hba1c_meta"] = 7.0
     st.session_state["fge"] = 60
     st.session_state["ic"] = False
     st.session_state["ascvd"] = False
@@ -105,4 +105,116 @@ with tab1:
     # 1. Regla de Emergencia
     if sintomas.startswith("Sí"):
         st.error("🚨 **ALERTA CLÍNICA:** Paciente sintomático/catabólico.")
-        st.info("💉 **INSULINIZACIÓN**
+        # La línea siguiente es la que estaba dando error, ahora está verificada:
+        st.info("💉 **INSULINIZACIÓN** (Basal o Esquema intensivo según criterio) +/- Metformina.")
+    
+    else:
+        # 2. Regla de Comorbilidades
+        col_izq, col_der = st.columns([2, 1])
+
+        with col_izq:
+            st.subheader("💊 Esquema Sugerido")
+            
+            # Driver Cardiorrenal
+            if tiene_ic:
+                st.success("💙 **Prioridad Insuficiencia Cardíaca:** iSGLT2")
+                recomendaciones.append("empagliflozina")
+                recomendaciones.append("dapagliflozina")
+                st.caption("Evitar: Pioglitazona, Saxagliptina.")
+                
+            elif tiene_erd:
+                st.success("🧡 **Prioridad Renal:** iSGLT2 (Nefroprotección)")
+                recomendaciones.append("empagliflozina")
+                recomendaciones.append("dapagliflozina")
+                recomendaciones.append("canagliflozina")
+                if fge < 30:
+                    st.warning("⚠️ Si FGe < 30, considerar iDPP4 o aGLP1 según tolerancia.")
+
+            elif tiene_ascvd:
+                st.success("❤️ **Prioridad Cardiovascular:** aGLP1 o iSGLT2")
+                recomendaciones.append("liraglutida")
+                recomendaciones.append("empagliflozina")
+                
+            elif tiene_obesidad:
+                st.info("⚖️ **Prioridad Peso:** aGLP1 (Semaglutida/Tirzepatida)")
+                recomendaciones.append("semaglutida_sc")
+
+            # Driver Glucémico
+            gap = hba1c_actual - hba1c_meta
+            if not recomendaciones:
+                recomendaciones.append("metformina") 
+                if gap < 1.5:
+                    st.info("💊 **Monoterapia:** Metformina + Estilo de vida")
+                else:
+                    st.info("💊 **Terapia Dual:** Metformina + iSGLT2 / iDPP4")
+                    recomendaciones.append("sitagliptina") 
+
+            # 3. DETALLE DE DROGAS (Tarjetas)
+            st.markdown("---")
+            st.subheader("🛡️ Seguridad y Ajuste de Dosis")
+            
+            if recomendaciones:
+                st.write("Detalle de fármacos sugeridos para este perfil:")
+                for farmaco_id in recomendaciones:
+                    datos = next((f for f in FARMACOS if f["id"] == farmaco_id), None)
+                    if datos:
+                        accion, mensaje_renal = obtener_ajuste_renal(farmaco_id, fge)
+                        
+                        with st.expander(f"**{datos['nombre']}** ({datos['familia']})", expanded=True):
+                            col_a, col_b = st.columns([1, 2])
+                            with col_a:
+                                if accion == "VERDE":
+                                    st.success(f"Renal: {mensaje_renal}")
+                                elif accion == "AMARILLO":
+                                    st.warning(f"Renal: {mensaje_renal}")
+                                else:
+                                    st.error(f"Renal: {mensaje_renal}")
+                            with col_b:
+                                st.write(f"**Dosis:** {datos['dosis_habitual']}")
+                                st.caption(f"**Comercial (Arg):** {datos['nombres_comerciales_arg']}")
+
+        with col_der:
+            st.markdown("### 📝 Resumen")
+            st.metric("HbA1c Meta", f"{hba1c_meta:.1f}%", delta=f"{hba1c_actual - hba1c_meta:.1f}%", delta_color="inverse")
+            st.metric("Función Renal", f"{fge} ml/min")
+            
+            if tiene_ic or tiene_ascvd or tiene_erd:
+                st.warning("Perfil: **Alto Riesgo**")
+            else:
+                st.success("Perfil: **Metabólico**")
+
+# --- PESTAÑA 2: VADEMECUM (TABLA) ---
+with tab2:
+    st.header("📖 Tabla Comparativa de Fármacos")
+    st.markdown("Referencia rápida de familias, mecanismos y ajustes.")
+    
+    # Procesamos los datos
+    tabla_datos = []
+    for f in FARMACOS:
+        tabla_datos.append({
+            "Fármaco": f["nombre"],
+            "Familia": f["familia"],
+            "Mecanismo": f["mecanismo"],
+            "Reducción HbA1c": f["hba1c_reduccion"],
+            "Dosis Habitual": f["dosis_habitual"],
+            "Efectos Adversos": f["efectos_adversos"],
+            "Nombres Comerciales": f["nombres_comerciales_arg"]
+        })
+    
+    df = pd.DataFrame(tabla_datos)
+    
+    st.dataframe(
+        df, 
+        use_container_width=True, 
+        hide_index=True,
+        column_config={
+            "Fármaco": st.column_config.TextColumn(width="medium"),
+            "Mecanismo": st.column_config.TextColumn(width="large"),
+            "Nombres Comerciales": st.column_config.TextColumn(width="medium"),
+        }
+    )
+
+# --- FOOTER ---
+st.markdown("---")
+with st.expander("⚖️ AVISO LEGAL Y FUENTES", expanded=False):
+    st.markdown(DISCLAIMER)
