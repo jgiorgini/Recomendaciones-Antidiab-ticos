@@ -1,7 +1,7 @@
 import streamlit as st
 import sys
 import os
-import pandas as pd # Necesitamos pandas para la tabla
+import pandas as pd
 
 # --- BLOQUE DE IMPORTACIÓN ROBUSTO ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,6 +28,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- FUNCIÓN PARA RESETEAR DATOS ---
+def resetear_datos():
+    st.session_state["sintomas"] = "No"
+    st.session_state["imc"] = 28.0
+    st.session_state["hba1c_actual"] = 8.5
+    st.session_state["hba1c_meta"] = 7.0
+    st.session_state["fge"] = 60
+    st.session_state["ic"] = False
+    st.session_state["ascvd"] = False
+    st.session_state["erd"] = False
+
 # --- TEXTOS Y DATA ---
 DISCLAIMER = """
 **AVISO IMPORTANTE: HERRAMIENTA DE APOYO CLÍNICO**
@@ -40,16 +51,21 @@ DISCLAIMER = """
 with st.sidebar:
     st.title("Perfil del Paciente")
     
+    # Botón de Reset
+    st.button("🗑️ Limpiar / Resetear", on_click=resetear_datos, type="secondary")
+    st.markdown("---")
+
     st.subheader("1. Clínica y Biometría")
-    sintomas = st.radio("¿Síntomas de hiperglucemia?", ["No", "Sí (Poliuria, Polidipsia, Pérdida peso)"], index=0)
-    imc = st.number_input("IMC (kg/m²)", min_value=15.0, max_value=60.0, value=28.0, step=0.1)
+    # Agregamos el parámetro 'key' a cada input para poder resetearlo
+    sintomas = st.radio("¿Síntomas de hiperglucemia?", ["No", "Sí (Poliuria, Polidipsia, Pérdida peso)"], index=0, key="sintomas")
+    imc = st.number_input("IMC (kg/m²)", min_value=15.0, max_value=60.0, value=28.0, step=0.1, key="imc")
     
     st.subheader("2. Laboratorio")
-    hba1c_actual = st.number_input("HbA1c Actual (%)", min_value=4.0, max_value=20.0, value=8.5, step=0.1)
-    hba1c_meta = st.number_input("HbA1c Meta (%)", min_value=5.0, max_value=10.0, value=7.0, step=0.1)
+    hba1c_actual = st.number_input("HbA1c Actual (%)", min_value=4.0, max_value=20.0, value=8.5, step=0.1, key="hba1c_actual")
+    hba1c_meta = st.number_input("HbA1c Meta (%)", min_value=5.0, max_value=10.0, value=7.0, step=0.1, key="hba1c_meta")
     
     # Input de FGe con cambio de color dinámico
-    fge = st.number_input("Filtrado Glomerular (ml/min)", min_value=0, max_value=150, value=60)
+    fge = st.number_input("Filtrado Glomerular (ml/min)", min_value=0, max_value=150, value=60, key="fge")
     if fge > 60:
         st.success(f"Función Renal Conservada (>60)")
     elif fge >= 30:
@@ -60,10 +76,10 @@ with st.sidebar:
     st.subheader("3. Comorbilidades")
     col1, col2 = st.columns(2)
     with col1:
-        tiene_ic = st.checkbox("Insuf. Cardíaca")
-        tiene_ascvd = st.checkbox("Enf. CV (Infarto/ACV)")
+        tiene_ic = st.checkbox("Insuf. Cardíaca", key="ic")
+        tiene_ascvd = st.checkbox("Enf. CV (Infarto/ACV)", key="ascvd")
     with col2:
-        tiene_erd = st.checkbox("Enf. Renal Diabética")
+        tiene_erd = st.checkbox("Enf. Renal Diabética", key="erd")
         tiene_obesidad = True if imc >= 30 else False
         if tiene_obesidad:
             st.caption("✅ Obesidad")
