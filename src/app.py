@@ -1,7 +1,7 @@
 import streamlit as st
 import sys
 import os
-import pandas as pd # Necesitamos pandas para la tabla linda
+import pandas as pd # Necesitamos pandas para la tabla
 
 # --- BLOQUE DE IMPORTACIÓN ROBUSTO ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +22,7 @@ except ImportError:
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Día-D: Asistente Diabetes",
+    page_title="Recomendaciones DBT2",
     page_icon="🩺",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -70,7 +70,7 @@ with st.sidebar:
 
 # --- PANTALLA PRINCIPAL CON PESTAÑAS ---
 
-st.title("Día-D: Recomendación Terapéutica")
+st.title("Recomendaciones de Tratamiento en DBT2")
 
 # Creamos dos pestañas
 tab1, tab2 = st.tabs(["🧮 Calculadora Terapéutica", "📖 Vademécum Completo"])
@@ -154,7 +154,6 @@ with tab1:
 
         with col_der:
             st.markdown("### 📝 Resumen")
-            # Corrección de decimales aplicada aquí (.1f)
             st.metric("HbA1c Meta", f"{hba1c_meta:.1f}%", delta=f"{hba1c_actual - hba1c_meta:.1f}%", delta_color="inverse")
             st.metric("Función Renal", f"{fge} ml/min")
             
