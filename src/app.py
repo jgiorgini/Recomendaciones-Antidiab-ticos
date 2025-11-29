@@ -19,7 +19,8 @@ DISCLAIMER = """
 
 # --- BARRA LATERAL (INPUTS) ---
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/3063/3063176.png", width=50) # Icono genérico o tu logo
+    # Puedes cambiar la URL por un logo local si prefieres
+    st.image("https://cdn-icons-png.flaticon.com/512/3063/3063176.png", width=50) 
     st.title("Perfil del Paciente")
     
     st.subheader("1. Clínica y Biometría")
@@ -55,19 +56,17 @@ st.title("Día-D: Recomendación Terapéutica")
 st.markdown("---")
 
 # LÓGICA RÁPIDA (PROTOTIPO)
-# Nota: Esto se conectará luego con tus módulos de lógica avanzada en 'src/logic/'
-
 recomendaciones = []
 alertas = []
 
-# 1. Regla de Emergencia (Fuente 1)
+# 1. Regla de Emergencia
 if sintomas.startswith("Sí"):
     st.error("🚨 **ALERTA CLÍNICA:** Paciente sintomático/catabólico.")
     st.markdown("### Recomendación Prioritaria:")
     st.info("💉 **INSULINIZACIÓN** (Basal o Esquema intensivo según criterio) +/- Metformina.")
     st.stop() # Detiene el resto del algoritmo
 
-# 2. Regla de Comorbilidades (Fuente 2 - SEMI 2025)
+# 2. Regla de Comorbilidades
 col_izq, col_der = st.columns([2, 1])
 
 with col_izq:
@@ -101,7 +100,7 @@ with col_izq:
         else:
             st.primary("💊 **Terapia Dual:** Metformina + iSGLT2 / iDPP4")
 
-    # 3. Filtros de Seguridad Renal (Fuente 1 y 2)
+    # 3. Filtros de Seguridad Renal
     st.markdown("---")
     st.subheader("🛡️ Seguridad Renal y Ajustes")
     
@@ -128,5 +127,5 @@ st.markdown("---")
 with st.expander("⚖️ AVISO LEGAL Y FUENTES (Clic para desplegar)", expanded=False):
     st.markdown(DISCLAIMER)
     st.markdown("**Fuentes:**")
-    [cite_start]st.markdown("- *Guía de Práctica Clínica Nacional DM2 (Argentina, 2019)* [cite: 1]")
-    [cite_start]st.markdown("- *Actualización Tratamiento DM2 (SEMI, 2025)* [cite: 1396]")
+    st.markdown("- *Guía de Práctica Clínica Nacional DM2 (Argentina, 2019)*")
+    st.markdown("- *Actualización Tratamiento DM2 (SEMI, 2025)*")
