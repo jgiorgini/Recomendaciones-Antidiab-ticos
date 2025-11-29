@@ -27,6 +27,15 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+    # --- OCULTAR BARRA SUPERIOR Y FOOTER ---
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # --- FUNCIÓN PARA RESETEAR DATOS ---
 def resetear_datos():
