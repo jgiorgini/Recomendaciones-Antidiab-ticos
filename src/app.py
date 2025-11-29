@@ -1,7 +1,22 @@
 import streamlit as st
-from datetime import datetime
+import sys
+import os
 
-# Configuración de la página (Debe ser la primera línea de Streamlit)
+# Agregamos el directorio raíz al path para poder importar módulos propios
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Intentamos importar la base de datos (Vademecum)
+try:
+    from src.data.vademecum import obtener_ajuste_renal, FARMACOS
+except ImportError:
+    # Fallback por si la estructura de carpetas varía en local/nube
+    try:
+        from data.vademecum import obtener_ajuste_renal, FARMACOS
+    except:
+        st.error("No se pudo cargar el Vademécum. Verifique la estructura de carpetas.")
+        FARMACOS = []
+
+# Configuración de la página
 st.set_page_config(
     page_title="Día-D: Asistente Diabetes",
     page_icon="🩺",
@@ -19,8 +34,6 @@ DISCLAIMER = """
 
 # --- BARRA LATERAL (INPUTS) ---
 with st.sidebar:
-    # Puedes cambiar la URL por un logo local si prefieres
-    st.image("https://cdn-icons-png.flaticon.com/512/3063/3063176.png", width=50) 
     st.title("Perfil del Paciente")
     
     st.subheader("1. Clínica y Biometría")
@@ -40,7 +53,7 @@ with st.sidebar:
     else:
         st.error(f"Insuficiencia Renal Severa/Falla ({fge})")
 
-    st.subheader("3. Comorbilidades (Drivers)")
+    st.subheader("3. Comorbilidades")
     col1, col2 = st.columns(2)
     with col1:
         tiene_ic = st.checkbox("Insuf. Cardíaca")
@@ -48,7 +61,8 @@ with st.sidebar:
     with col2:
         tiene_erd = st.checkbox("Enf. Renal Diabética")
         tiene_obesidad = True if imc >= 30 else False
-        st.write(f"Obesidad: {'Sí' if tiene_obesidad else 'No'}")
+        if tiene_obesidad:
+            st.caption("✅ Obesidad detectada")
 
 # --- PANTALLA PRINCIPAL ---
 
@@ -57,14 +71,13 @@ st.markdown("---")
 
 # LÓGICA RÁPIDA (PROTOTIPO)
 recomendaciones = []
-alertas = []
 
 # 1. Regla de Emergencia
 if sintomas.startswith("Sí"):
     st.error("🚨 **ALERTA CLÍNICA:** Paciente sintomático/catabólico.")
     st.markdown("### Recomendación Prioritaria:")
     st.info("💉 **INSULINIZACIÓN** (Basal o Esquema intensivo según criterio) +/- Metformina.")
-    st.stop() # Detiene el resto del algoritmo
+    st.stop() 
 
 # 2. Regla de Comorbilidades
 col_izq, col_der = st.columns([2, 1])
@@ -75,57 +88,76 @@ with col_izq:
     # Driver Cardiorrenal
     if tiene_ic:
         st.success("💙 **Prioridad Insuficiencia Cardíaca:** iSGLT2 (Empagliflozina / Dapagliflozina)")
-        recomendaciones.append("iSGLT2")
+        recomendaciones.append("empagliflozina")
+        recomendaciones.append("dapagliflozina")
         st.caption("Evitar: Pioglitazona, Saxagliptina.")
         
     elif tiene_erd:
         st.success("🧡 **Prioridad Renal:** iSGLT2 (Nefroprotección)")
-        recomendaciones.append("iSGLT2")
+        recomendaciones.append("empagliflozina")
+        recomendaciones.append("dapagliflozina")
+        recomendaciones.append("canagliflozina")
         if fge < 30:
             st.warning("⚠️ Si FGe < 30, considerar iDPP4 o aGLP1 según tolerancia.")
 
     elif tiene_ascvd:
         st.success("❤️ **Prioridad Cardiovascular:** aGLP1 o iSGLT2")
-        recomendaciones.append("aGLP1")
+        recomendaciones.append("liraglutida")
+        recomendaciones.append("empagliflozina")
         
     elif tiene_obesidad:
         st.info("⚖️ **Prioridad Peso:** aGLP1 (Semaglutida/Tirzepatida)")
-        recomendaciones.append("aGLP1")
+        recomendaciones.append("semaglutida_sc")
 
-    # Driver Glucémico (Si no hay recomendaciones previas fuertes o falta potencia)
+    # Driver Glucémico
     gap = hba1c_actual - hba1c_meta
     if not recomendaciones:
+        recomendaciones.append("metformina") # Base siempre
         if gap < 1.5:
-            st.primary("💊 **Monoterapia:** Metformina + Estilo de vida")
+            st.info("💊 **Monoterapia:** Metformina + Estilo de vida") # CORREGIDO AQUÍ
         else:
-            st.primary("💊 **Terapia Dual:** Metformina + iSGLT2 / iDPP4")
+            st.info("💊 **Terapia Dual:** Metformina + iSGLT2 / iDPP4") # CORREGIDO AQUÍ
+            recomendaciones.append("sitagliptina") # Ejemplo
 
-    # 3. Filtros de Seguridad Renal
+    # 3. DETALLE DE DROGAS Y AJUSTE RENAL (CONECTADO A VADEMECUM)
     st.markdown("---")
-    st.subheader("🛡️ Seguridad Renal y Ajustes")
+    st.subheader("🛡️ Seguridad y Ajuste de Dosis")
     
-    if fge < 30:
-        st.error(f"⛔ **FGe {fge}:** Metformina CONTRAINDICADA. Evitar Glibenclamida.")
-    elif fge < 45:
-        st.warning(f"⚠️ **FGe {fge}:** Reducir dosis de Metformina al 50%.")
-    elif fge < 60:
-        st.info(f"ℹ️ **FGe {fge}:** Monitorizar función renal cada 3-6 meses.")
-    else:
-        st.success("✅ Función renal permite dosis plenas de Metformina y mayoría de orales.")
+    if recomendaciones:
+        st.write("Detalle de fármacos sugeridos para este perfil:")
+        for farmaco_id in recomendaciones:
+            # Buscamos los datos en el vademecum
+            datos = next((f for f in FARMACOS if f["id"] == farmaco_id), None)
+            
+            if datos:
+                # Calculamos seguridad renal en vivo
+                accion, mensaje_renal = obtener_ajuste_renal(farmaco_id, fge)
+                
+                # Renderizamos tarjeta
+                with st.expander(f"**{datos['nombre']}** ({datos['familia']})", expanded=True):
+                    col_a, col_b = st.columns([1, 2])
+                    with col_a:
+                        if accion == "VERDE":
+                            st.success(f"Renal: {mensaje_renal}")
+                        elif accion == "AMARILLO":
+                            st.warning(f"Renal: {mensaje_renal}")
+                        else:
+                            st.error(f"Renal: {mensaje_renal}")
+                    with col_b:
+                        st.write(f"**Dosis:** {datos['dosis_habitual']}")
+                        st.caption(f"**Comercial (Arg):** {datos['nombres_comerciales_arg']}")
 
 with col_der:
-    st.markdown("### 📝 Resumen Clínico")
-    st.write(f"**Paciente:** {hba1c_actual}% HbA1c (Meta: {hba1c_meta}%)")
-    st.write(f"**Renal:** {fge} ml/min")
+    st.markdown("### 📝 Resumen")
+    st.metric("HbA1c Meta", f"{hba1c_meta}%", delta=f"{round(hba1c_actual - hba1c_meta, 1)}%", delta_color="inverse")
+    st.metric("Función Renal", f"{fge} ml/min")
+    
     if tiene_ic or tiene_ascvd or tiene_erd:
-        st.write("**Perfil:** Alto Riesgo Cardiorrenal")
+        st.warning("Perfil: **Alto Riesgo**")
     else:
-        st.write("**Perfil:** Control Glucémico")
+        st.success("Perfil: **Metabólico**")
 
-# --- FOOTER / DISCLAIMER ---
+# --- FOOTER ---
 st.markdown("---")
-with st.expander("⚖️ AVISO LEGAL Y FUENTES (Clic para desplegar)", expanded=False):
+with st.expander("⚖️ AVISO LEGAL Y FUENTES", expanded=False):
     st.markdown(DISCLAIMER)
-    st.markdown("**Fuentes:**")
-    st.markdown("- *Guía de Práctica Clínica Nacional DM2 (Argentina, 2019)*")
-    st.markdown("- *Actualización Tratamiento DM2 (SEMI, 2025)*")
