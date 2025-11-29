@@ -149,7 +149,7 @@ with col_izq:
 
 with col_der:
     st.markdown("### 📝 Resumen")
-    st.metric("HbA1c Meta", f"{hba1c_meta}%", delta=f"{round(hba1c_actual - hba1c_meta, 1)}%", delta_color="inverse")
+    st.metric("HbA1c Meta", f"{hba1c_meta:.1f}%", delta=f"{hba1c_actual - hba1c_meta:.1f}%", delta_color="inverse")
     st.metric("Función Renal", f"{fge} ml/min")
     
     if tiene_ic or tiene_ascvd or tiene_erd:
